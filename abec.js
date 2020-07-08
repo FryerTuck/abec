@@ -213,7 +213,7 @@
         r=[]; h="{:HOSTPURL:}"; o=["_fake_"];
         s.forEach((i)=>
         {
-            if((h!=("{"+":HOSTPURL:"+"}"))&&(i.indexOf(h)<0)){return};
+            if((h!=("{"+":HOSTPURL:"+"}"))&&(i.indexOf(h)<0)){return}; // security
             let p,c,f,l,q; q=1; p=i.trim().split(h);
             c=p[0].split("@").join("").split("at ").join("").trim(); c=c.split(" ")[0]; if(!c){c="anon"};
             o.forEach((y)=>{if(((c.indexOf(y)==0)||(c.indexOf("."+y)>0))&&(a.indexOf(y)<0)){q=0}}); if(!q){return};
