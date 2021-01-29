@@ -77,7 +77,7 @@
 // ----------------------------------------------------------------------------------------------------------------------------
     hard(function dump(){console.log.apply(console,([].slice.call(arguments)))});
     hard(function moan(m)
-    {let a=([].slice.call(arguments)); a.unshift("\x1b[31m%s\x1b[0m"); console.error.apply(console,a); fail(m)});
+    {let a=([].slice.call(arguments)); a.unshift("\x1b[31m%s\x1b[0m"); console.error.apply(console,a);});
 // ----------------------------------------------------------------------------------------------------------------------------
 
 
@@ -90,7 +90,7 @@
     defn("ANY ALL");
     defn("INIT AUTO COOL DARK LITE INFO GOOD NEED WARN FAIL NEXT SKIP STOP DONE ACTV NONE BUSY KEYS VALS ONCE EVRY BFOR AFTR");
     defn("UNTL EVNT FILL TILE SPAN OPEN SHUT SELF VERT HORZ");
-    defn("CLIENT SERVER SILENT");
+    defn("CLIENT SERVER SILENT FORGET");
 // ----------------------------------------------------------------------------------------------------------------------------
 
 
@@ -529,7 +529,7 @@
 
 
 // shiv :: (wrap) : related to distinct first and last character pairs in text
-// --------------------------------------------------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------------------------------
    hard(function isWrap(v, r,l)
    {
       if(!isText(v,2)){return FALS}; r=(v.slice(0,1)+v.slice(-1)); l="\"\" '' `` {} [] () <> // :: \\\\ **".split(" ");
@@ -538,7 +538,7 @@
 
    hard(function wrapOf(v, w){w=isWrap(v); return (w?w:'')});
    hard(function unwrap(v, w){w=isWrap(v); return (w?v.slice(1,-1):v)});
-// --------------------------------------------------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------------------------------
 
 
 
@@ -566,8 +566,8 @@
    ({
       round:function round(n,d, r)
       {
-         if(!isNumr(n)){return}; if(isInum(n)){return n}; if(!d||!isInum(d)){return Math.round(n)}; r=n.toFixed(d); r=rtrim(rtrim(r,'0'),'.');
-         r=(r*1); return r;
+         if(!isNumr(n)){return}; if(isInum(n)){return n}; if(!d||!isInum(d)){return Math.round(n)}; r=n.toFixed(d);
+         r=rtrim(rtrim(r,'0'),'.'); r=(r*1); return r;
       },
       time:function time(d)
       {
@@ -653,13 +653,14 @@
 
 
 
-// func :: fail : trigger error
+// func :: fail : error handling & trigger error
 // ----------------------------------------------------------------------------------------------------------------------------
     extend(MAIN)
     ({
         fail:function fail(m, a,n,f,l,s,p,o)
         {
-           if(MAIN.HALT){return}; MAIN.HALT=1; if(MAIN.Busy){Busy.tint('red')}; tick.after(2000,()=>{MAIN.HALT=0});
+           if(MAIN.HALT){return}; MAIN.HALT=1; if(MAIN.Busy){Busy.tint("red")};
+           tick.after(3000,()=>{MAIN.HALT=0; if(!isKnob(o)){return}; seenFail(o,FORGET)});
            if(wrapOf(m)=="{}"){m=JSON.parse(m);};
            if(isText(m))
            {
@@ -669,23 +670,32 @@
                    if(n&&isWord(n[0])){m=n[2];n=n[0]}else{n="Undefined"};
                    f=stub(a[1],": ")[2]; l=stub(a[2],": ")[2]; a=decode.jso(atob(stub(a[3],": ")[2]));
                    s=[]; a.forEach((i)=>{radd(s,`${i.func} ${i.file} ${i.line}`)}); o={evnt:n,mesg:m,file:f,line:l,stak:s};
-                   if(seenFail(o)){return}; emit("FAIL",o); return;
+               }
+               else
+               {
+                   if(!isin(m,' :: ')){m=('Usage :: '+m);}; n=stub(m,' :: '); m=n[2]; n=n[0]; s=stak(); p=(s[0]||"").split(" ");
+                   o={evnt:n,mesg:m,file:p[1],line:p[2],stak:s};
                };
-               if(!isin(m,' :: ')){m=('Usage :: '+m);}; n=stub(m,' :: '); m=n[2]; n=n[0]; s=stak(); p=(s[0]||"").split(" ");
-               o={evnt:n,mesg:m,file:p[1],line:p[2],stak:s};
-               if(seenFail(o)){return}; emit("FAIL",o); return;
+           }
+           else
+           {
+               if(!isKnob(m)){moan(m); alert("an error has occurred, me scuzi"); return};
+               m.evnt=(m.evnt||m.name); if(!m.evnt){p=stub(m.mesg," - "); if(p&&isWord(p[0])){m.evnt=p[0]; m.mesg=p[2]}};
+               m.stak=(m.stak||stak());
+               if(isKnob(m.stak[0])){s=[]; m.stak.forEach((i)=>{radd(s,`${i.func} ${i.file} ${i.line}`)}); m.stak=s}; o=m;
            };
-           if(!isKnob(m)){console.error(m); alert("an error has occurred, me scuzi"); return};
-           m.evnt=(m.evnt||m.name); if(!m.evnt){p=stub(m.mesg," - "); if(p&&isWord(p[0])){m.evnt=p[0]; m.mesg=p[2]}};
-           m.stak=(m.stak||stak());
-           if(isKnob(m.stak[0])){s=[]; m.stak.forEach((i)=>{radd(s,`${i.func} ${i.file} ${i.line}`)}); m.stak=s};
-           if(seenFail(m)){return}; emit("FAIL",m); return true;
+
+
+           if(seenFail(o)){return}; moan(o); emit("FAIL",o); return true;
        },
 
-       seenFail:function seenFail(d, r)
+       seenFail:function seenFail(d,f, r)
        {
-           d=md5(`${d.evnt}${d.mesg}${d.file}${d.line}`); r=(this.hash==d); this.hash=d; return r;
-       }.bind({hash:""}),
+           d=md5(`${d.evnt}${d.mesg}${d.file}${d.line}`);
+           if(f){delete this[d]; return};
+           r=this[d]; if(r){return d};
+           this[d]=1; return FALS;
+       }.bind({}),
     });
 // ----------------------------------------------------------------------------------------------------------------------------
 
@@ -711,14 +721,14 @@
             let n,r,j,a,z,q; j='_fake_'; r=stak(0,j); r=(r||'').split(' ')[0];
             if(r.startsWith(j)||(r.indexOf(`.${j}`)>0)){n=(r.split(j).pop())};
             if(!n&&(r=='new')&&!!this.constructor){n=this.constructor.name;};
-            if(!n){console.error(`can't jack "${r}"`);return}; r=jack(n);
+            if(!n){moan(`can't jack "${r}"`);return}; r=jack(n);
             a=([].slice.call(arguments)); for(let p in r.list)
             {if(!r.list.hasOwnProperty(p)){continue}; let i=rename(j,r.list[p]);
             q=i.apply(this,a); if(q!=VOID){break};}; if(!Array.isArray(q)){q=[q]};
             try{if(!r.cons){z=r.func.apply(this,q)}else
             {z=(new (Function.prototype.bind.apply(r.func,[null].concat(a))));}}
             catch(e){if(!!r.evnt&&!!r.evnt.error){r.evnt.error(e)}
-            else{console.error(e)};return}; if(!!r.evnt&&!!z.addEventListener)
+            else{moan(e)};return}; if(!!r.evnt&&!!z.addEventListener)
             {for(let en in r.evnt){if(r.evnt.hasOwnProperty(en))
             {z.addEventListener(en,r.evnt[en],false)}}}; return z;
         };
@@ -743,11 +753,14 @@
 // ----------------------------------------------------------------------------------------------------------------------------
     hard(function stak(x,a, e,s,r,h,o)
     {
-        a=(a||""); e=(new Error(".")); s=e.stack.split("\n"); s.shift(); r=[];
-        o=["_fake_"]; // omit
+        if((x+"").indexOf(" ")){s=x.split("\n"); x=VOID}
+        else{e=(new Error(".")); s=e.stack.split("\n")};
+
+        a=(a||""); s.shift(); r=[]; o=["_fake_"]; // omit
+
         s.forEach((i)=>
         {
-            if((ENVITYPE=="web")&&(i.indexOf(HOSTPURL)<0)){return}; // web security
+            if(CLIENTSIDE&&(i.indexOf(HOSTPURL)<0)){return}; // web security
             let p,c,f,l,q; q=1; p=i.trim().split(HOSTPURL);
             c=p[0].split("@").join("").split("at ").join("").trim(); c=c.split(" ")[0]; if(!c){c="anon"};
             o.forEach((y)=>{if(((c.indexOf(y)==0)||(c.indexOf("."+y)>0))&&(a.indexOf(y)<0)){q=0}}); if(!q){return};
@@ -755,6 +768,7 @@
             if((c=="stak")||(f=="/")){return}; l=p[1]; l=([c,f,l]).join(" "); if(l.indexOf(" at ")>-1){return};
             r[r.length]=l;
         });
+
         if(!isNaN(x*1)){return r[x]}; return r;
     });
 // ----------------------------------------------------------------------------------------------------------------------------
@@ -800,6 +814,35 @@
     });
 
     herald(MAIN);
+
+
+    if(CLIENTSIDE)
+    {
+        MAIN.upon("error",function errorHandler(event)
+        {
+            let e,m,f,l,s,i,n,h,o; event.preventDefault(); event.stopPropagation(); e=event.error;
+            f=event.filename; l=event.lineno; if(!e||isText(e)||((e.stack+"").indexOf("\n")<0)){e=(new Error((e+"")))};
+            n=(e.name||"usage"); m=e.message; if(!f){f=fail.maybe;}; if(!l){l=0;}; s=stak(); h=`https://${HOSTNAME}`;
+            f=ltrim(f,h); o={name:n, mesg:m, file:f, line:l, stak:s}; if(MAIN.HALT){return}; MAIN.HALT=1;
+
+            if(MAIN.Busy){Busy.tint("red")};
+            tick.after(3000,()=>{MAIN.HALT=0; if(!isKnob(o)){return}; seenFail(o,FORGET)});
+            moan(o); emit("FAIL",o);
+        });
+    }
+    else
+    {
+        process.on("uncaughtException",function errorHandler(e)
+        {
+            let m,f,l,s,p,o,n; m=e.message; s=stak(e.stack);
+            if(!isList(s,1)){moan(m); process.exit(1); return}; // bad error
+
+            p=s[0].split(" "); n=p[0]; f=p[1]; l=(p[2]*1);
+            o={name:n, mesg:m, file:f, line:l, stak:s}; if(MAIN.HALT){return}; MAIN.HALT=1;
+            tick.after(3000,()=>{MAIN.HALT=0; if(!isKnob(o)){return}; seenFail(o,FORGET)});
+            moan(o); emit("FAIL",o);
+        });
+    };
 // ----------------------------------------------------------------------------------------------------------------------------
 
 
@@ -814,7 +857,7 @@
             after:function after(frst,scnd)
             {
                 if(isFrac(frst)){frst=Math.floor(frst*1000)}; // fraction to seconds
-                if(!isFunc(scnd)){moan("2nd arg must be a function"); return}; // validation
+                if(!isFunc(scnd)){fail("2nd arg must be a function"); return}; // validation
 
                 if(isNumr(frst)){let timr=setTimeout(scnd,frst); return timr}; // simple timeout
                 if(isFunc(frst)&&isFunc(scnd)){scnd(frst());}; // syntax sugar
@@ -824,7 +867,7 @@
             every:function every(frst,scnd,slow,lmit)
             {
                 if(isFrac(frst)){frst=Math.floor(frst*1000)}; // fraction to seconds
-                if(!isFunc(scnd)){moan("2nd arg must be a function"); return}; // validation
+                if(!isFunc(scnd)){fail("2nd arg must be a function"); return}; // validation
                 if(!isInum(slow)||(slow<0)){slow=0}; if(!isInum(lmit)||(lmit<0)){lmit=null}; // normalize to prevent issues
 
                 if(isNumr(frst))
@@ -848,8 +891,8 @@
 
             until:function until(frst,scnd,slow,lmit)
             {
-                if(!isFunc(frst)){moan("1st arg must be a function"); return}; // validation
-                if(!isFunc(scnd)){moan("2nd arg must be a function"); return}; // validation
+                if(!isFunc(frst)){fail("1st arg must be a function"); return}; // validation
+                if(!isFunc(scnd)){fail("2nd arg must be a function"); return}; // validation
                 if(!isInum(slow)||(slow<0)){slow=0}; if(!isInum(lmit)||(lmit<0)){lmit=0}; // normalize to prevent issues
 
                 let timr=setInterval(()=>
@@ -889,7 +932,7 @@
         trap:function trap(o)
         {
             if(isFunc(o)){o={get:o,set:o,apply:o,construct:o}};
-            if(!isKnob(o)){moan("invalid argument"); return}; // validation
+            if(!isKnob(o)){fail("invalid argument"); return}; // validation
             return (new Proxy(this,o));
         },
     });
@@ -1011,52 +1054,6 @@
 
 
 
-// shim :: (libs) : misc tools
-// ----------------------------------------------------------------------------------------------------------------------------
-    if(SERVERSIDE)
-    {
-        hard("http",require("http"));
-        hard("fsys",require("fs"));
-
-        hard(function btoa(arg)
-        {return Buffer.from(arg).toString("base64");});
-
-        hard(function atob(arg)
-        {return Buffer.from(arg,"base64").toString();});
-    }
-    else
-    {
-        bake("http",
-        {
-            request:function request(opt,cbf, xhr)
-            {
-                if(isText(opt)){opt={target:opt};}; if(!isKnob(opt)){moan("invalid 1st argument"); return};
-                if(!isKnob(opt.listen)){opt.listen={}}; if(isFunc(cbf)){opt.listen.loadend=cbf};
-                xhr=(new XMLHttpRequest()); xhr.open((opt.method||"GET"),opt.target);
-                opt.listen.forEach((v,k)=>{xhr.addEventListener(k,v)});
-                if(isKnob(opt.header)){opt.header.forEach((v,k)=>{xhr.setRequestHeader(k,v)})};
-                xhr.send((opt.convey?text(opt.convey):null));
-            }
-        });
-
-        bake("fsys",
-        {
-            readFile:function readFile(pt,cb)
-            {
-                http.request(pt,function()
-                {
-                    let hd=mean(this.getAllResponseHeaders(),(k)=>{return camelCase(k,1)},(v)=>
-                    {if(!isin(v,"=")){return v}; v=mean(v.swap(["=",","],[":",";"])); return v});
-                    cb(this.response,hd);
-                });
-            },
-        });
-    };
-// ----------------------------------------------------------------------------------------------------------------------------
-
-
-
-
 // tool :: encode/decode : unified syntax for various encoding and decoding methods
 // ----------------------------------------------------------------------------------------------------------------------------
     extend(MAIN)
@@ -1171,9 +1168,95 @@
 
 
 
-// tool :: vars : less smelly globals
+// tool :: global : less smelly global-variables
 // ----------------------------------------------------------------------------------------------------------------------------
+    hard(function global(d,f, fs,si,y,r,rb)
+    {
+        fs=stak(); if(!fs){comoan("forbidden",fs);return}; // get the call-stack, if empty -> wack the abuser, else use it for from-auth
+        if((f!==VOID)&&!isList(f)){fail("invalid 2nd arg");return}; // verify auth, must be text-list, or VOID
+        if(f){y=0;f.forEach((p)=>{if(!isText(p)){fail("invalid 2nd arg");y=1}}); if(y){return}}; // verify each text if from-auth
+        if(isText(d,1)){return copyOf(this.vars[d])}; if(!isKnob(d,1)){return}; // return copy of requested value, or VOID if not object
+        // below will attempt to create/update global variables using from-auth security (if any -else it's immutable)
+        si=rstub(fs[1]," ")[0]; rb=true; d.forEach((v,k)=>
+        {
+            if(k.length<1){return}; r=this.vars[k]; // sanitize & prep
+            if(r===VOID){this.vars[k]=v; this.auth[k]=f; return}; // not defined yet, so create it now using auth-from (if any)
+            if(!isin(this.auth[k],si)){rb=false; moan("forbidden",fs); return STOP}; // not authorized to change this variable
+            this.vars[k]=v; // update existing variable, cannot re-auth, only initial creation can set auth
+        });
+        return rb;
+    }
+    .bind({vars:{},auth:{}}));
 // ----------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+// shim :: String.expose : returns a list of items found in string wrapped inside string-pair
+// ----------------------------------------------------------------------------------------------------------------------------
+    extend(String.prototype)
+    ({
+        expose:function expose(b,e,x)
+        {
+            if(!isText(t,1)||!isText(b,1)||!isText(e,1)||(t.indexOf(b)<0)||(t.indexOf(e)<0)){return};  // validate
+            let t,r,ml,xb,xe,xs,bl,el; t=(this+""); bl=b.length; el=e.length; ml=(bl+el); if(t.length<(ml+1)){return}; r=[];
+            do
+            {
+                xb=t.indexOf(b); if(xb<0){break}; xe=t.indexOf(e,(xb+bl)); if(xe<0){break};
+                xs=t.slice((xb+bl),xe); if(!x||test(xs,x)){r.push(xs); t=t.slice((xe+el));}else{t=t.slice(xe);};
+            }
+            while((t.length>ml)&&(xb>-1)&&(xe>-1));
+            return ((r.length>0)?r:VOID);
+        }
+    });
+// ----------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+// shim :: (libs) : misc tools
+// ----------------------------------------------------------------------------------------------------------------------------
+    if(SERVERSIDE)
+    {
+        hard("http",require("http"));
+        hard("fsys",require("fs"));
+
+        hard(function btoa(arg)
+        {return Buffer.from(arg).toString("base64");});
+
+        hard(function atob(arg)
+        {return Buffer.from(arg,"base64").toString();});
+    }
+    else
+    {
+        bake("http",
+        {
+            request:function request(opt,cbf, xhr)
+            {
+                if(isText(opt)){opt={target:opt};}; if(!isKnob(opt)){fail("invalid 1st argument"); return};
+                if(!isKnob(opt.listen)){opt.listen={}}; if(isFunc(cbf)){opt.listen.loadend=cbf};
+                xhr=(new XMLHttpRequest()); xhr.open((opt.method||"GET"),opt.target);
+                opt.listen.forEach((v,k)=>{xhr.addEventListener(k,v)});
+                if(isKnob(opt.header)){opt.header.forEach((v,k)=>{xhr.setRequestHeader(k,v)})};
+                xhr.send((opt.convey?text(opt.convey):null));
+            }
+        });
+
+        bake("fsys",
+        {
+            readFile:function readFile(pt,cb)
+            {
+                http.request(pt,function()
+                {
+                    let hd=mean(this.getAllResponseHeaders(),(k)=>{return camelCase(k,1)},(v)=>
+                    {if(!isin(v,"=")){return v}; v=mean(v.swap(["=",","],[":",";"])); return v});
+                    cb(this.response,hd);
+                });
+            },
+        });
+    };
+// ----------------------------------------------------------------------------------------------------------------------------
+
 
 
 
@@ -1191,7 +1274,7 @@
             return fsys[k].apply(fsys,a);
         }.bind({k:rtrim(key,"Sync")});
     }});
-    disk.root=((ENVITYPE=="njs")?(rtrim((__dirname).split("/").rpop(true).join("/"),"/")||"/"):"");
+    disk.root=(CLIENTSIDE?"":(rtrim((__dirname),"/")||"/"));
 // ----------------------------------------------------------------------------------------------------------------------------
 
 
@@ -1203,23 +1286,24 @@
     ({
         server:
         {
-            config:{mime:{}},
+            config:{mime:{html:"text/html",htm:"text/html",css:"text/css",js:"application/javascript"}},
 
 
             create:function create(addr,path,indx)
             {
                 if(!addr){addr="127.0.0.1"}; if(!path){path=disk.root}; if(!indx){indx="/index.html"};
+
                 let host = http.createServer(function(req,rsp)
                 {
                     this.emit(req.method,[req,rsp]);
                     if(!!this.upon.events[req.method]){return}; // already handled
                     if(!this.upon.events.GET&&(req.method=="GET"))
                     {
-                        let rp,mt,fd,tv; rp=rtrim(req.url,"/"); rp=(this.path+(rp||this.indx));
+                        let rp,mt,fd,tv,fx; rp=rtrim(req.url,"/"); rp=(this.path+(rp||this.indx));
                         if(!disk.exists(rp)){rsp.writeHead(404); rsp.end("Not Found"); return}; // undefined
                         if(disk.stat(rp).isDirectory()) // folder
                         {tv=(rp+"/index.html"); if(!disk.exists(tv)){rsp.writeHead(403); rsp.end("Forbidden"); return}; rp=tv};
-                        mt=server.config.mime[fext(rp)];  fd=disk.readFile(rp);  rsp.statusCode=200;
+                        fx=fext(rp);  mt=server.config.mime[fx];  fd=disk.readFile(rp);  rsp.statusCode=200;
                         rsp.setHeader("Content-type",(mt||"text/plain")); rsp.end(fd);
                         return;
                     };
@@ -1235,8 +1319,8 @@
 
             select:function select(opt,cbf)
             {
-                if(isPath(opt)){opt={using:opt}}; if(!isKnob(opt)){moan("1st arg is invalid"); return};
-                if(isFunc(cbf)){opt.yield=cbf}; if(!isFunc(opt.yield)){moan("invalid options/arguments"); return};
+                if(isPath(opt)){opt={using:opt}}; if(!isKnob(opt)){fail("1st arg is invalid"); return};
+                if(isFunc(cbf)){opt.yield=cbf}; if(!isFunc(opt.yield)){fail("invalid options/arguments"); return};
                 disk.readFile(opt.using,function(rsp,hdr)
                 {
                     if(isFunc(opt.apply)){rsp=opt.apply(rsp,hdr);};
@@ -1632,7 +1716,7 @@
         MAIN.upon("keypress",function(e)
         {
             let cb; cb=e.key; if(e.keyCode==91){cb="Meta";}else if(cb==" "){cb="Space"}; emit("KeyPress",cb);
-             device.vars.last="keyboard"; if(e.repeat){emit("KeyRepeat",cb)};
+            device.vars.last="keyboard"; if(e.repeat){emit("KeyRepeat",cb)};
             if(device.vars.busy.keyboard){clearTimeout(device.vars.busy.keyboard)}else{emit("TypingBegin")};
             device.vars.busy.keyboard=tick.after(500,()=>{delete device.vars.busy.keyboard; emit("TypingEnd")});
         });
